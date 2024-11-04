@@ -1,0 +1,229 @@
+Mappings:
+  AmiImages:
+    us-east-1:
+      AMI: ami-0ff8a91507f77f867
+
+Resources: 
+  # VPC
+  MyVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: "10.0.0.0/16"
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: MyVPC
+
+  # Subnets
+  AppPrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyVPC
+      CidrBlock: "10.0.1.0/24"
+      AvailabilityZone: "us-east-1a"
+
+  AppPrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyVPC
+      CidrBlock: "10.0.2.0/24"
+      AvailabilityZone: "us-east-1b"
+
+  DBPrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyVPC
+      CidrBlock: "10.0.3.0/24"
+      AvailabilityZone: "us-east-1c"
+
+  DBPrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyVPC
+      CidrBlock: "10.0.4.0/24"
+      AvailabilityZone: "us-east-1b"
+
+  # Internet Gateway
+  MyInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: MyInternetGateway
+  
+  # Attach Internet Gateway to VPC
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref MyVPC
+      InternetGatewayId: !Ref MyInternetGateway
+
+
+  # Load Balancer
+  MyLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: MyAppLoadBalancer
+      Subnets:
+        - !Ref AppPrivateSubnet1
+        - !Ref AppPrivateSubnet2
+      SecurityGroups:
+        - Ref: MyLoadBalancerSG
+      Scheme: internet-facing
+
+  # Load Balancer Security Group
+  MyLoadBalancerSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP and HTTPS
+      VpcId: !Ref MyVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+
+  # Target Group for Load Balancer
+  MyTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: MyAppTargetGroup
+      Port: 80
+      Protocol: HTTP
+      VpcId: !Ref MyVPC
+      TargetType: instance
+      Targets:
+        - Id: !Ref BackendEC2Instance1
+        - Id: !Ref BackendEC2Instance2
+
+  # Listener for Load Balancer
+  MyLoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref MyTargetGroup
+      LoadBalancerArn: !Ref MyLoadBalancer
+      Port: 80
+      Protocol: HTTP
+
+  # EC2 Backend Servers
+  BackendEC2Instance1:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      SubnetId: !Ref AppPrivateSubnet1
+      ImageId:
+        Fn::FindInMap:
+          - AmiImages
+          - us-east-1
+          - AMI
+      Tags:
+        - Key: Name
+          Value: BackendServer1
+
+  BackendEC2Instance2:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      SubnetId: !Ref AppPrivateSubnet2
+      ImageId:
+        Fn::FindInMap:
+          - AmiImages
+          - us-east-1
+          - AMI
+      Tags:
+        - Key: Name
+          Value: BackendServer2
+
+ # RDS Database
+  MyDatabase:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: "database-cookapp"
+      AllocatedStorage: 20
+      DBInstanceClass: db.t4g.micro
+      Engine: postgres
+      MasterUsername: "postgres"
+      MasterUserPassword: "PassDbPFC1."
+      DBSubnetGroupName:
+        Ref: MyDBSubnetGroup
+      VPCSecurityGroups:
+        - Ref: MyDatabaseSG
+      PubliclyAccessible: false
+
+  MyDatabaseReplica:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      SourceDBInstanceIdentifier: !Ref MyDatabase
+      DBInstanceClass: db.t4g.micro
+      AvailabilityZone: "us-east-1b"
+
+  # Database Security Group
+  MyDatabaseSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow database access only from backend
+      VpcId: !Ref MyVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref MyLoadBalancerSG
+
+  # DB Subnet Group
+  MyDBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: "Subnet group for RDS database"
+      SubnetIds:
+        - !Ref DBPrivateSubnet1
+        - !Ref DBPrivateSubnet2
+
+
+  # Amazon Cognito
+  MyUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: MyAppUserPool
+
+  # Amazon CloudWatch
+  MyCloudWatchAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: CPUAlarm
+      ComparisonOperator: GreaterThanThreshold
+      EvaluationPeriods: 2
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Period: 300
+      Statistic: Average
+      Threshold: 80
+      AlarmActions:
+        - Ref: MySNS
+  
+  # SNS Topic for CloudWatch Alarm
+  MySNS:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: MyAppAlarmTopic
+
+  # Amazon SQS
+  MyQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: MyAppQueue
+
+Outputs:
+  VPCId:
+    Description: "VPC ID"
+    Value: !Ref MyVPC
+
+  LoadBalancerDNSName:
+    Description: "DNS Name for Load Balancer"
+    Value: !GetAtt MyLoadBalancer.DNSName
