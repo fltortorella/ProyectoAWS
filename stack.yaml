@@ -67,17 +67,6 @@ Resources:
     Type: AWS::EC2::EIP
     Properties:
       Domain: vpc
-  
-  MyNewNatGateway:
-    Type: AWS::EC2::NatGateway
-    Properties:
-      AllocationId: !GetAtt MyElasticIP.AllocationId
-      SubnetId: !Ref AppPrivateSubnet1
-      Tags:
-        - Key: Name
-          Value: MyNatGateway
-        - Key: Owner
-          Value: Demo
 
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
@@ -100,7 +89,7 @@ Resources:
       Subnets:
         - !Ref AppPrivateSubnet1
         - !Ref AppPrivateSubnet2
-      Scheme: internal  # Load Balancer interno
+      Scheme: internet-facing
       SecurityGroups:
         - !Ref MyLBSecurityGroup
 
@@ -114,7 +103,7 @@ Resources:
         - IpProtocol: tcp
           FromPort: 80
           ToPort: 80
-          CidrIp: "10.0.0.0/16"
+          CidrIp: "0.0.0.0/0"
 
   BackendInstanceSecurityGroup:
     Type: AWS::EC2::SecurityGroup
