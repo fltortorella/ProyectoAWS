@@ -115,7 +115,7 @@ Resources:
       Port: 80
       Protocol: HTTP
 
-  # EC2 Backend Servers
+  # EC2 Backend Servers with CreationPolicy and WaitCondition
   BackendEC2Instance1:
     Type: AWS::EC2::Instance
     Properties:
