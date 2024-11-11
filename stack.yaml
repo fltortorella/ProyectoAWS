@@ -22,6 +22,7 @@ Resources:
       VpcId: !Ref MyVPC
       CidrBlock: "10.0.1.0/24"
       AvailabilityZone: "us-east-1a"
+      MapPublicIpOnLaunch: false
 
   AppPrivateSubnet2:
     Type: AWS::EC2::Subnet
@@ -29,6 +30,7 @@ Resources:
       VpcId: !Ref MyVPC
       CidrBlock: "10.0.2.0/24"
       AvailabilityZone: "us-east-1b"
+      MapPublicIpOnLaunch: false
 
   DBPrivateSubnet1:
     Type: AWS::EC2::Subnet
@@ -36,6 +38,7 @@ Resources:
       VpcId: !Ref MyVPC
       CidrBlock: "10.0.3.0/24"
       AvailabilityZone: "us-east-1c"
+      MapPublicIpOnLaunch: false
 
   DBPrivateSubnet2:
     Type: AWS::EC2::Subnet
@@ -43,6 +46,7 @@ Resources:
       VpcId: !Ref MyVPC
       CidrBlock: "10.0.4.0/24"
       AvailabilityZone: "us-east-1b"
+      MapPublicIpOnLaunch: false
 
   # Internet Gateway
   MyInternetGateway:
@@ -51,7 +55,7 @@ Resources:
       Tags:
         - Key: Name
           Value: MyInternetGateway
-  
+
   # Attach Internet Gateway to VPC
   AttachGateway:
     Type: AWS::EC2::VPCGatewayAttachment
@@ -125,6 +129,8 @@ Resources:
       Tags:
         - Key: Name
           Value: BackendServer1
+      SecurityGroups:
+        - Ref: MyBackendSG
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
@@ -148,6 +154,8 @@ Resources:
       Tags:
         - Key: Name
           Value: BackendServer2
+      SecurityGroups:
+        - Ref: MyBackendSG
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
@@ -157,6 +165,18 @@ Resources:
           cd /home/ubuntu/CookApp_Backend
           pip3 install -r requirements.txt
           FLASK_APP=app.py flask run --host=0.0.0.0 --port=80
+
+  # Backend Security Group
+  MyBackendSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP traffic from Load Balancer
+      VpcId: !Ref MyVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !Ref MyLoadBalancerSG
 
   # RDS Database
   MyDatabase:
@@ -168,18 +188,10 @@ Resources:
       Engine: postgres
       MasterUsername: "postgres"
       MasterUserPassword: "PassDbPFC1."
-      DBSubnetGroupName:
-        Ref: MyDBSubnetGroup
+      DBSubnetGroupName: !Ref MyDBSubnetGroup
       VPCSecurityGroups:
         - Ref: MyDatabaseSG
       PubliclyAccessible: false
-
-  MyDatabaseReplica:
-    Type: AWS::RDS::DBInstance
-    Properties:
-      SourceDBInstanceIdentifier: !Ref MyDatabase
-      DBInstanceClass: db.t4g.micro
-      AvailabilityZone: "us-east-1b"
 
   # Database Security Group
   MyDatabaseSG:
@@ -191,7 +203,7 @@ Resources:
         - IpProtocol: tcp
           FromPort: 5432
           ToPort: 5432
-          SourceSecurityGroupId: !Ref MyLoadBalancerSG
+          SourceSecurityGroupId: !Ref MyBackendSG
 
   # DB Subnet Group
   MyDBSubnetGroup:
@@ -202,44 +214,7 @@ Resources:
         - !Ref DBPrivateSubnet1
         - !Ref DBPrivateSubnet2
 
-  # Amazon Cognito
-  MyUserPool:
-    Type: AWS::Cognito::UserPool
-    Properties:
-      UserPoolName: MyAppUserPool
-
-  # Amazon CloudWatch
-  MyCloudWatchAlarm:
-    Type: AWS::CloudWatch::Alarm
-    Properties:
-      AlarmName: CPUAlarm
-      ComparisonOperator: GreaterThanThreshold
-      EvaluationPeriods: 2
-      MetricName: CPUUtilization
-      Namespace: AWS/EC2
-      Period: 300
-      Statistic: Average
-      Threshold: 80
-      AlarmActions:
-        - Ref: MySNS
-  
-  # SNS Topic for CloudWatch Alarm
-  MySNS:
-    Type: AWS::SNS::Topic
-    Properties:
-      TopicName: MyAppAlarmTopic
-
-  # Amazon SQS
-  MyQueue:
-    Type: AWS::SQS::Queue
-    Properties:
-      QueueName: MyAppQueue
-
 Outputs:
   VPCId:
     Description: "VPC ID"
     Value: !Ref MyVPC
-
-  LoadBalancerDNSName:
-    Description: "DNS Name for Load Balancer"
-    Value: !GetAtt MyLoadBalancer.DNSName
