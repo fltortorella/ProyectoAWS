@@ -130,7 +130,7 @@ Resources:
         - IpProtocol: -1
           CidrIp: "0.0.0.0/0"
   
-   MyInstanceProfile:
+  MyInstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
       Path: /
@@ -186,7 +186,7 @@ Resources:
         - !Ref BackendInstanceSecurityGroup
     Tags:
         - Key: Name 
-          Value: BackendInstance1
+          Value: BackendInstance2
 
 
   # RDS Database
