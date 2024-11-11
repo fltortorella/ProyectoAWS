@@ -2,7 +2,7 @@ Mappings:
   AmiImages:
     us-east-1:
       AMI: ami-0ff8a91507f77f867
-      
+
 Resources: 
   # VPC
   MyVPC:
@@ -51,6 +51,13 @@ Resources:
       Tags:
         - Key: Name
           Value: MyInternetGateway
+  
+  # Attach Internet Gateway to VPC
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref MyVPC
+      InternetGatewayId: !Ref MyInternetGateway
 
   # Load Balancer
   MyLoadBalancer:
@@ -83,15 +90,15 @@ Resources:
   # Target Group for Load Balancer
   MyTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    DependsOn:
+      - BackendEC2Instance1
+      - BackendEC2Instance2
     Properties:
       Name: MyAppTargetGroup
       Port: 80
       Protocol: HTTP
       VpcId: !Ref MyVPC
       TargetType: instance
-      Targets:
-        - Id: !Ref BackendEC2Instance1
-        - Id: !Ref BackendEC2Instance2
 
   # Listener for Load Balancer
   MyLoadBalancerListener:
@@ -110,28 +117,54 @@ Resources:
     Properties:
       InstanceType: t2.micro
       SubnetId: !Ref AppPrivateSubnet1
-      ImageId: ami-12345678
+      ImageId:
+        Fn::FindInMap:
+          - AmiImages
+          - us-east-1
+          - AMI
       Tags:
         - Key: Name
           Value: BackendServer1
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          sudo apt update -y
+          sudo apt install -y python3-pip git
+          git clone https://<YOUR_BACKEND_TOKEN>@github.com/Vladsil/CookApp_Backend.git /home/ubuntu/CookApp_Backend
+          cd /home/ubuntu/CookApp_Backend
+          pip3 install -r requirements.txt
+          FLASK_APP=app.py flask run --host=0.0.0.0 --port=80
 
   BackendEC2Instance2:
     Type: AWS::EC2::Instance
     Properties:
       InstanceType: t2.micro
       SubnetId: !Ref AppPrivateSubnet2
-      ImageId: ami-12345678
+      ImageId:
+        Fn::FindInMap:
+          - AmiImages
+          - us-east-1
+          - AMI
       Tags:
         - Key: Name
           Value: BackendServer2
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          sudo apt update -y
+          sudo apt install -y python3-pip git
+          git clone https://<YOUR_BACKEND_TOKEN>@github.com/Vladsil/CookApp_Backend.git /home/ubuntu/CookApp_Backend
+          cd /home/ubuntu/CookApp_Backend
+          pip3 install -r requirements.txt
+          FLASK_APP=app.py flask run --host=0.0.0.0 --port=80
 
   # RDS Database
   MyDatabase:
     Type: AWS::RDS::DBInstance
     Properties:
-      DBInstanceIdentifier: "database-1"
+      DBInstanceIdentifier: "database-cookapp"
       AllocatedStorage: 20
-      DBInstanceClass: db.t2.micro
+      DBInstanceClass: db.t4g.micro
       Engine: postgres
       MasterUsername: "postgres"
       MasterUserPassword: "PassDbPFC1."
@@ -145,7 +178,7 @@ Resources:
     Type: AWS::RDS::DBInstance
     Properties:
       SourceDBInstanceIdentifier: !Ref MyDatabase
-      DBInstanceClass: db.t2.micro
+      DBInstanceClass: db.t4g.micro
       AvailabilityZone: "us-east-1b"
 
   # Database Security Group
@@ -168,12 +201,6 @@ Resources:
       SubnetIds:
         - !Ref DBPrivateSubnet1
         - !Ref DBPrivateSubnet2
-
-  # Amazon S3 Bucket
-  MyS3Bucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: "036800666508-us-east1-recipe-images"
 
   # Amazon Cognito
   MyUserPool:

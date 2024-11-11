@@ -1,0 +1,37 @@
+name: Deploy CloudFormation Stack
+
+on:
+  push:
+    paths:
+      - 'stack.yaml'
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1 
+
+      - name: Replace token in stack.yaml
+        run: |
+          sed -i 's|<YOUR_BACKEND_TOKEN>|${{ secrets.ACCESS_TOKEN_BACKEND }}|g' stack.yaml
+
+      - name: Deploy CloudFormation stack
+        run: |
+          aws cloudformation deploy \
+            --template-file stack.yaml \
+            --stack-name stackCookApp \
+            --capabilities CAPABILITY_NAMED_IAM
+
+
