@@ -63,6 +63,22 @@ Resources:
       VpcId: !Ref MyVPC
       InternetGatewayId: !Ref MyInternetGateway
   
+  MyElasticIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+  
+  MyNewNatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt MyElasticIP.AllocationId
+      SubnetId: !Ref AppPrivateSubnet1
+      Tags:
+        - Key: Name
+          Value: MyNatGateway
+        - Key: Owner
+          Value: Demo
+
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -113,6 +129,13 @@ Resources:
       SecurityGroupEgress:
         - IpProtocol: -1
           CidrIp: "0.0.0.0/0"
+  
+   MyInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - LabRole
 
   # Target Group for Load Balancer
   MyTargetGroup:
@@ -145,8 +168,12 @@ Resources:
       InstanceType: "t2.micro"
       SubnetId: !Ref AppPrivateSubnet1
       ImageId: !FindInMap [AmiImages, us-east-1, AMI]
+      IamInstanceProfile: !Ref MyInstanceProfile
       SecurityGroupIds:
         - !Ref BackendInstanceSecurityGroup
+    Tags:
+        - Key: Name 
+          Value: BackendInstance1
 
   BackendInstance2:
     Type: AWS::EC2::Instance
@@ -154,8 +181,12 @@ Resources:
       InstanceType: "t2.micro"
       SubnetId: !Ref AppPrivateSubnet2
       ImageId: !FindInMap [AmiImages, us-east-1, AMI]
+      IamInstanceProfile: !Ref MyInstanceProfile
       SecurityGroupIds:
         - !Ref BackendInstanceSecurityGroup
+    Tags:
+        - Key: Name 
+          Value: BackendInstance1
 
 
   # RDS Database
