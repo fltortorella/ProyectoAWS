@@ -62,34 +62,57 @@ Resources:
     Properties:
       VpcId: !Ref MyVPC
       InternetGatewayId: !Ref MyInternetGateway
+  
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref MyVPC
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: "0.0.0.0/0"
+      GatewayId: !Ref MyInternetGateway
 
   # Load Balancer
-  MyLoadBalancer:
+  LoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
-      Name: MyAppLoadBalancer
+      Name: "MyInternalLoadBalancer"
       Subnets:
         - !Ref AppPrivateSubnet1
         - !Ref AppPrivateSubnet2
+      Scheme: internal  # Load Balancer interno
       SecurityGroups:
-        - Ref: MyLoadBalancerSG
-      Scheme: internet-facing
+        - !Ref MyLBSecurityGroup
 
   # Load Balancer Security Group
-  MyLoadBalancerSG:
+  MyLBSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Allow HTTP and HTTPS
       VpcId: !Ref MyVPC
+      GroupDescription: "Security group for internal load balancer"
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 80
           ToPort: 80
-          CidrIp: 0.0.0.0/0
+          CidrIp: "10.0.0.0/16"
+
+  BackendInstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref MyVPC
+      GroupDescription: "Security group for backend instances"
+      SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
-          CidrIp: 0.0.0.0/0
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !Ref MyLBSecurityGroup
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: "0.0.0.0/0"
 
   # Target Group for Load Balancer
   MyTargetGroup:
@@ -116,41 +139,24 @@ Resources:
       Protocol: HTTP
 
   # EC2 Backend Servers with CreationPolicy and WaitCondition
-  BackendEC2Instance1:
+  BackendInstance1:
     Type: AWS::EC2::Instance
     Properties:
-      InstanceType: t2.micro
+      InstanceType: "t2.micro"
       SubnetId: !Ref AppPrivateSubnet1
       ImageId: !FindInMap [AmiImages, us-east-1, AMI]
-      Tags:
-        - Key: Name
-          Value: BackendServer1
       SecurityGroupIds:
-        - Ref: MyBackendSG
+        - !Ref BackendInstanceSecurityGroup
 
-  BackendEC2Instance2:
+  BackendInstance2:
     Type: AWS::EC2::Instance
     Properties:
-      InstanceType: t2.micro
+      InstanceType: "t2.micro"
       SubnetId: !Ref AppPrivateSubnet2
       ImageId: !FindInMap [AmiImages, us-east-1, AMI]
-      Tags:
-        - Key: Name
-          Value: BackendServer2
       SecurityGroupIds:
-        - Ref: MyBackendSG
+        - !Ref BackendInstanceSecurityGroup
 
-  # Backend Security Group
-  MyBackendSG:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Allow HTTP traffic from Load Balancer
-      VpcId: !Ref MyVPC
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          SourceSecurityGroupId: !Ref MyLoadBalancerSG
 
   # RDS Database
   MyDatabase:
@@ -177,7 +183,7 @@ Resources:
         - IpProtocol: tcp
           FromPort: 5432
           ToPort: 5432
-          SourceSecurityGroupId: !Ref MyBackendSG
+          SourceSecurityGroupId: !Ref BackendInstanceSecurityGroup
 
   # DB Subnet Group
   MyDBSubnetGroup:
