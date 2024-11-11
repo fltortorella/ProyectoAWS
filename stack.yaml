@@ -127,25 +127,6 @@ Resources:
           Value: BackendServer1
       SecurityGroupIds:
         - Ref: MyBackendSG
-      UserData:
-        Fn::Base64: !Sub |
-          #!/bin/bash
-          sudo apt update -y
-          sudo apt install -y python3-pip git
-          git clone https://<YOUR_BACKEND_TOKEN>@github.com/Vladsil/CookApp_Backend.git /home/ubuntu/CookApp_Backend
-          cd /home/ubuntu/CookApp_Backend
-          pip3 install -r requirements.txt
-          FLASK_APP=app.py flask run --host=0.0.0.0 --port=80
-    CreationPolicy:
-      ResourceSignal:
-        Count: 1
-        Timeout: PT15M
-    Metadata:
-      AWS::CloudFormation::Init:
-        config:
-          commands:
-            signal_ready:
-              command: "/opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource BackendEC2Instance1 --region ${AWS::Region}"
 
   BackendEC2Instance2:
     Type: AWS::EC2::Instance
@@ -158,25 +139,6 @@ Resources:
           Value: BackendServer2
       SecurityGroupIds:
         - Ref: MyBackendSG
-      UserData:
-        Fn::Base64: !Sub |
-          #!/bin/bash
-          sudo apt update -y
-          sudo apt install -y python3-pip git
-          git clone https://<YOUR_BACKEND_TOKEN>@github.com/Vladsil/CookApp_Backend.git /home/ubuntu/CookApp_Backend
-          cd /home/ubuntu/CookApp_Backend
-          pip3 install -r requirements.txt
-          FLASK_APP=app.py flask run --host=0.0.0.0 --port=80
-    CreationPolicy:
-      ResourceSignal:
-        Count: 1
-        Timeout: PT15M
-    Metadata:
-      AWS::CloudFormation::Init:
-        config:
-          commands:
-            signal_ready:
-              command: "/opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource BackendEC2Instance2 --region ${AWS::Region}"
 
   # Backend Security Group
   MyBackendSG:
