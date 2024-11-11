@@ -85,7 +85,7 @@ Resources:
   LoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
-      Name: "MyInternalLoadBalancer"
+      Name: "MyLoadBalancer"
       Subnets:
         - !Ref AppPrivateSubnet1
         - !Ref AppPrivateSubnet2
@@ -98,7 +98,7 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       VpcId: !Ref MyVPC
-      GroupDescription: "Security group for internal load balancer"
+      GroupDescription: "Security group for load balancer"
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 80
