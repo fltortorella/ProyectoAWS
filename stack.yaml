@@ -118,8 +118,8 @@ Resources:
   MyTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     DependsOn:
-      - BackendEC2Instance1
-      - BackendEC2Instance2
+      - BackendInstance1  
+      - BackendInstance2  
     Properties:
       Name: MyAppTargetGroup
       Port: 80
