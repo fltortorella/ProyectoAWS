@@ -48,6 +48,18 @@ Resources:
       AvailabilityZone: "us-east-1b"
       MapPublicIpOnLaunch: false
 
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyVPC
+      CidrBlock: "10.0.5.0/24"
+      AvailabilityZone: "us-east-1a"
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: PublicSubnet
+
+
   # Internet Gateway
   MyInternetGateway:
     Type: AWS::EC2::InternetGateway
@@ -67,6 +79,36 @@ Resources:
     Type: AWS::EC2::EIP
     Properties:
       Domain: vpc
+
+  MyNatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      AllocationId: !GetAtt MyElasticIP.AllocationId
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref MyVPC
+
+  PrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: "0.0.0.0/0"
+      NatGatewayId: !Ref MyNatGateway
+
+  PrivateSubnetRouteTableAssociation1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref AppPrivateSubnet1
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnetRouteTableAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref AppPrivateSubnet2
+      RouteTableId: !Ref PrivateRouteTable
 
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
