@@ -171,9 +171,9 @@ Resources:
       IamInstanceProfile: !Ref MyInstanceProfile
       SecurityGroupIds:
         - !Ref BackendInstanceSecurityGroup
-    Tags:
-        - Key: Name 
-          Value: BackendInstance1
+      Tags:
+          - Key: Name 
+            Value: BackendInstance1
 
   BackendInstance2:
     Type: AWS::EC2::Instance
@@ -184,9 +184,9 @@ Resources:
       IamInstanceProfile: !Ref MyInstanceProfile
       SecurityGroupIds:
         - !Ref BackendInstanceSecurityGroup
-    Tags:
-        - Key: Name 
-          Value: BackendInstance2
+      Tags:
+          - Key: Name 
+            Value: BackendInstance2
 
 
   # RDS Database
