@@ -129,7 +129,7 @@ Resources:
       Tags:
         - Key: Name
           Value: BackendServer1
-      SecurityGroups:
+      SecurityGroupIds:
         - Ref: MyBackendSG
       UserData:
         Fn::Base64: !Sub |
@@ -154,7 +154,7 @@ Resources:
       Tags:
         - Key: Name
           Value: BackendServer2
-      SecurityGroups:
+      SecurityGroupIds:
         - Ref: MyBackendSG
       UserData:
         Fn::Base64: !Sub |
