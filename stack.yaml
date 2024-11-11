@@ -121,11 +121,7 @@ Resources:
     Properties:
       InstanceType: t2.micro
       SubnetId: !Ref AppPrivateSubnet1
-      ImageId:
-        Fn::FindInMap:
-          - AmiImages
-          - us-east-1
-          - AMI
+      ImageId: !FindInMap [AmiImages, us-east-1, AMI]
       Tags:
         - Key: Name
           Value: BackendServer1
@@ -140,17 +136,23 @@ Resources:
           cd /home/ubuntu/CookApp_Backend
           pip3 install -r requirements.txt
           FLASK_APP=app.py flask run --host=0.0.0.0 --port=80
+    CreationPolicy:
+      ResourceSignal:
+        Count: 1
+        Timeout: PT15M
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          commands:
+            signal_ready:
+              command: "/opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource BackendEC2Instance1 --region ${AWS::Region}"
 
   BackendEC2Instance2:
     Type: AWS::EC2::Instance
     Properties:
       InstanceType: t2.micro
       SubnetId: !Ref AppPrivateSubnet2
-      ImageId:
-        Fn::FindInMap:
-          - AmiImages
-          - us-east-1
-          - AMI
+      ImageId: !FindInMap [AmiImages, us-east-1, AMI]
       Tags:
         - Key: Name
           Value: BackendServer2
@@ -165,6 +167,16 @@ Resources:
           cd /home/ubuntu/CookApp_Backend
           pip3 install -r requirements.txt
           FLASK_APP=app.py flask run --host=0.0.0.0 --port=80
+    CreationPolicy:
+      ResourceSignal:
+        Count: 1
+        Timeout: PT15M
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          commands:
+            signal_ready:
+              command: "/opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource BackendEC2Instance2 --region ${AWS::Region}"
 
   # Backend Security Group
   MyBackendSG:
